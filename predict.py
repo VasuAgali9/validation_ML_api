@@ -6,8 +6,24 @@ from scipy.special import softmax
 import torch
 import re
 from email.parser import BytesParser
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+origins = [
+    "http://localhost.tiangolo.com",
+    "https://localhost.tiangolo.com",
+    "http://localhost",
+    "http://localhost:8000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Load the sentiment analysis model
 MODEL = "cardiffnlp/twitter-roberta-base-sentiment"
@@ -15,8 +31,8 @@ tokenizer = AutoTokenizer.from_pretrained(MODEL)
 model = AutoModelForSequenceClassification.from_pretrained(MODEL)
 
 # request accepted model
-# class SentimentRequest(BaseModel):
-#     text: str
+class SentimentRequest(BaseModel):
+    text: str
 
 # response model
 class SentimentResponse(BaseModel):
@@ -29,6 +45,14 @@ class SentimentResponse(BaseModel):
 # async def analyze_sentiment(request: SentimentRequest):
 #     prediction = predict(request.text)
 #     return prediction
+
+@app.get("/test")
+async def decode_attachement():
+    res = {
+        "Status": "ok",
+        "message": "Request recieved successfully"
+    }
+    return res
 
 @app.post("/validate")
 async def decode_attachement(attachement: UploadFile = File(...)):
@@ -50,20 +74,9 @@ def parse_email(content: bytes):
             content_type = part.get_content_type()
             if content_type == 'text/plain' or content_type == 'text/html':
                 body += part.get_payload(decode=True).decode(part.get_content_charset(), 'ignore')
-    
-            # elif content_type.startswith('image/'):
-            #     # Handle images in the body
-            #     image_data = part.get_payload(decode=True)
-            #     image_name = part.get_filename() or 'image.jpg'
-            #     with open(image_name, 'wb') as image_file:
-            #         image_file.write(image_data)
-
-    # else:
-    #     content_type = email_message.get_content_type()
-    #     if content_type == 'text/plain' or content_type == 'text/html':
-    #         body = email_message.get_payload(decode=True).decode(email_message.get_content_charset(), 'ignore')
-    body= body.split("On")
-    body = re.sub(r'[\n\t\r]', '', body[0])
+    # body= body.split("on")
+    body = re.sub(r'[\n\t\r]', '', body)
+    print(body)
     image = "[image: image.png]" in body
     pridiction = predict(body)
     return {
