@@ -63,31 +63,32 @@ async def decode_attachement(attachement: UploadFile = File(...)):
 
 def parse_email(content: bytes):
     email_message = BytesParser().parsebytes(content)
-    subject = email_message.get('Subject')
-    sender = email_message.get('From')
-    recipient = email_message.get('To')
-    date = email_message.get('Date')
+    # subject = email_message.get('Subject')
+    # sender = email_message.get('From')
+    # recipient = email_message.get('To')
+    # date = email_message.get('Date')
     body = ""
 
     if email_message.is_multipart():
         for part in email_message.walk():
             content_type = part.get_content_type()
-            if content_type == 'text/plain' or content_type == 'text/html':
+            if content_type == 'text/plain':
                 body += part.get_payload(decode=True).decode(part.get_content_charset(), 'ignore')
-    # body= body.split("on")
-    body = re.sub(r'[\n\t\r]', '', body)
-    print(body)
-    image = "[image: image.png]" in body
-    pridiction = predict(body)
-    return {
-        "pridiction" : pridiction,
-        "subject" : subject,
-        "sender" : sender,
-        "recipient": recipient,
-        "date": date,
-        "image": image,
-        "Body": body
-    }
+    pattern = r"^(.*?)(?=On\s+\w+,\s+\d+\s+\w+\s+\d+\s+at\s+\d+:\d+,\s+\w+\s+)"
+    body = re.search(pattern, body, re.IGNORECASE | re.DOTALL)
+    if body:
+        captured_text = body.group(1)
+        captured_text = re.sub(r'[!@#$(),\n\t\r"%^*?\:;`~0-9]', '', captured_text)
+        pridiction = predict(captured_text)
+        return {
+            "pridiction" : pridiction,
+            # "subject" : subject,
+            # "sender" : sender,
+            # "recipient": recipient,
+            # "date": date,
+            # "image": image,
+            "Body": captured_text
+        }
 
 def predict(text: str):
     encoded_text = tokenizer(text, return_tensors='pt')
